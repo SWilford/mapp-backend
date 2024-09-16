@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/',(req,res) => {
-    res.send('Test running')
+    res.send('Test')
 });
 
 const PORT = process.env.PORT || 3000;
