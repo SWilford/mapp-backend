@@ -10,28 +10,25 @@ module.exports = router;
 //Post route user registration
 const bcrypt = require('bcrypt');
 const users = require('../models/user'); // Import the user model
+const pool = require('../config/db'); // Import db rules
 
 // POST route for user sign-up
 router.post('/signup', async (req, res) => {
   const { username, password } = req.body;
 
-  // Check if the user already exists
-  const existingUser = users.find(user => user.username === username);
-  if (existingUser) {
-    return res.status(400).json({ message: 'User already exists' });
-  }
-
   try {
-    // Hash the password before storing it
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Store the new user (we will use a database later)
-    const newUser = { username, password: hashedPassword };
-    users.push(newUser);
 
-    res.status(201).json({ message: 'User registered successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error during registration' });
+    // Save user to PostgreSQL
+    const newUser = await pool.query(
+      'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *',
+      [username, hashedPassword]
+    );
+
+    res.status(201).json({ message: 'User registered successfully', user: newUser.rows[0] });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
   }
 });
 
@@ -44,27 +41,34 @@ const jwt = require('jsonwebtoken');
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
-  // Find the user
-  const user = users.find(user => user.username === username);
-  if (!user) {
-    return res.status(400).json({ message: 'User not found' });
-  }
-
   try {
-    // Compare the entered password with the stored hashed password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Invalid password' });
+    // Fetch user from the database
+    const userResult = await pool.query(
+      'SELECT * FROM users WHERE username = $1',
+      [username]
+    );
+
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    // Compare the password
+    const isValid = await bcrypt.compare(password, user.password);
+
+    if (!isValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Generate a JWT token
-    const token = jwt.sign({ username: user.username }, process.env.JWT_SECRET, {
-      expiresIn: '1h', // Token expires in 1 hour
+    const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, {
+      expiresIn: '1h',
     });
 
-    res.json({ message: 'Login successful', token });
-  } catch (error) {
-    res.status(500).json({ message: 'Error during login' });
+    res.json({ token });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
