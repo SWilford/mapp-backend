@@ -14,8 +14,8 @@ router.post('/post', authenticateToken, async (req, res) => {
 
   try {
     const newJob = await pool.query(
-      'INSERT INTO jobs (title, description, location, posted_by) VALUES ($1, $2, $3, $4) RETURNING *',
-      [title, description, location, userId]
+      'INSERT INTO jobs (title, description, location, posted_by) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [title, description, location, userId, 'Pending']
     );
     res.status(201).json(newJob.rows[0]);
   } catch (err) {
@@ -54,5 +54,28 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// PATCH route to update the status of a job
+router.patch('/:id/status', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    const updatedJob = await pool.query(
+      'UPDATE jobs SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    if (updatedJob.rows.length === 0) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+
+    res.json(updatedJob.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
 
 module.exports = router;
