@@ -14,7 +14,7 @@ const pool = require('../config/db'); // Import db rules
 
 // POST route for user sign-up
 router.post('/signup', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, first_name, last_name } = req.body;
 
   try {
     // Hash the password
@@ -22,8 +22,8 @@ router.post('/signup', async (req, res) => {
 
     // Save user to PostgreSQL
     const newUser = await pool.query(
-      'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *',
-      [username, hashedPassword]
+      'INSERT INTO users (username, password, first_name, last_name) VALUES ($1, $2, $3, $4) RETURNING *',
+      [username, hashedPassword, first_name, last_name]
     );
 
     res.status(201).json({ message: 'User registered successfully', user: newUser.rows[0] });

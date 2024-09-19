@@ -1,3 +1,3 @@
-const users = []; // This will hold our users for now
+const users = []; // hold users for now...
 
 module.exports = users;

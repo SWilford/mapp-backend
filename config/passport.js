@@ -31,8 +31,14 @@ passport.use(new GoogleStrategy({
 
     // If the user doesn't exist, create a new user in the database
     const newUserResult = await pool.query(
-      'INSERT INTO users (google_id, username, password) VALUES ($1, $2, $3) RETURNING *',
-      [profile.id, profile.displayName, '']
+      'INSERT INTO users (google_id, username, first_name, last_name, password) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [
+        profile.id, 
+        profile.displayName, // username from Google profile
+        profile.name.givenName,  // first name from Google profile
+        profile.name.familyName, // last name from Google profile
+        '' // password is blank for Google users
+      ]
     );
 
     user = newUserResult.rows[0];
