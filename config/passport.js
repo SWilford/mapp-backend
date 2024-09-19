@@ -7,7 +7,8 @@ const jwt = require('jsonwebtoken');
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: '/auth/google/callback'
+  callbackURL: '/auth/google/callback',
+  scope: ['profile', 'email']
 }, async (accessToken, refreshToken, profile, done) => {
   try {
     // Check if the user already exists in the database
@@ -29,15 +30,22 @@ passport.use(new GoogleStrategy({
       return done(null, { user, token });  // Pass user and token to done
     }
 
+    //Check if email exists in the Google profile (it should)
+    if (!profile.emails || profile.emails.length === 0) {
+      return done(new Error("No email found in the Google profile"));
+    }
+    const email = profile.emails[0].value;
+
     // If the user doesn't exist, create a new user in the database
     const newUserResult = await pool.query(
-      'INSERT INTO users (google_id, username, first_name, last_name, password) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      'INSERT INTO users (google_id, username, first_name, last_name, email, password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [
         profile.id, 
-        profile.displayName, // username from Google profile
-        profile.name.givenName,  // first name from Google profile
-        profile.name.familyName, // last name from Google profile
-        '' // password is blank for Google users
+        email,                     // username as Google email
+        profile.name.givenName,    // first name from Google profile
+        profile.name.familyName,    // last name from Google profile
+        email,                     // store Google email
+        ''                         // password is blank for Google users
       ]
     );
 
