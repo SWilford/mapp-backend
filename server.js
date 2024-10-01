@@ -35,8 +35,8 @@ app.use('/api/users', userRoutes);
 const transporter = nodemailer.createTransport({
   service: 'Gmail',
   auth: {
-    user: process.env.EMAIL, // Your Gmail
-    pass: process.env.EMAIL_PASSWORD // Your Gmail password
+    user: process.env.EMAIL,
+    pass: process.env.EMAIL_PASSWORD
   }
 });
 
@@ -143,6 +143,43 @@ app.post('/reset-password/:token', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(400).json({ message: 'Invalid or expired token' });
+  }
+});
+
+// POST route to handle forgot username requests
+app.post('/forgot-username', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Check if email exists in the database
+    const result = await pool.query('SELECT username FROM users WHERE email = $1', [email]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Email not found' });
+    }
+
+    const username = result.rows[0].username;
+
+    console.log("Username: " + username)
+    console.log("Email: " + email)
+
+    const mailOptions = {
+      from: process.env.EMAIL,
+      to: email,
+      subject: 'YardShare Username',
+      text: `Your username is: ${username}`,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        return res.status(500).json({ message: 'Error sending email', error });
+      }
+
+      return res.json({ message: 'Username sent to your email' });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
